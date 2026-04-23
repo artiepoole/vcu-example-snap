@@ -6,42 +6,94 @@ description: |
   VCU for ZynqMP k26 platforms
 grade: devel
 confinement: strict
+version: 0.12-0xlnx2
 platforms:
   arm64:
-    build-on: [arm64]
-    build-for: [arm64]
+    build-on: [ arm64 ]
+    build-for: [ arm64 ]
 package-repositories:
+  # ubuntu-xilinx/default (noble): provides VCU userspace matching Noble kernel modules
+  - type: apt
+    url: https://ppa.launchpadcontent.net/ubuntu-xilinx/default/ubuntu
+    suites: [ noble ]
+    components: [ main ]
+    key-id: 803DDF595EA7B6644F9B96B752150A179A9E84C9
+    key-server: keyserver.ubuntu.com
+  # xilinx-apps/ppa (jammy): provides xlnx-firmware-kv260-smartcam bitstream files
   - type: apt
     url: https://ppa.launchpadcontent.net/xilinx-apps/ppa/ubuntu
-    suites: [jammy]
-    components: [main]
+    suites: [ jammy ]
+    components: [ main ]
     key-id: 327DCDBF661D04B5150656FE8FF9183FC8396160
     key-server: keyserver.ubuntu.com
+environment:
+  OMX_ALLEGRO_PATH: $SNAP/usr/lib/
 plugs:
   fpgad-dbus:
     interface: dbus
     bus: system
     name: com.canonical.fpgad
+  allegro-access:
+    interface: custom-device
+    custom-device: allegroIP
 slots:
   provided-content:
     interface: content
     content: provider-content
     source:
       read:
-        - $SNAP/data/vcu-bitstreams
+        - $SNAP/data/vcu/bitstreams
 apps:
-  xilinx-vcu-ctrl:
-    
+  init:
+    command: bin/manage_bitstream.sh
+    plugs:
+      - fpgad-dbus
+  deinit:
+    command: bin/manage_bitstream.sh --remove
+    plugs:
+      - fpgad-dbus
+  omx-decoder:
+    command: usr/bin/omx_decoder
+    plugs:
+      - allegro-access
+  omx-encoder:
+    command: usr/bin/omx_encoder
+    plugs:
+      - allegro-access
+  ctrlsw-decoder:
+    command: usr/bin/ctrlsw_decoder
+    plugs:
+      - allegro-access
 parts:
+  manage_script:
+    plugin: dump
+    source: bin
+    source-type: local
+    organize:
+      manage_bitstream.sh: bin/manage_bitstream.sh
+    stage:
+      - bin/manage_bitstream.sh
   xilinx-vcu-ctrl:
     plugin: nil
-    source-packages:
+    stage-packages:
       - xilinx-vcu-ctrl
   xilinx-vcu-omx-utils:
     plugin: nil
-    source-packages:
+    stage-packages:
       - xilinx-vcu-omx-utils
+  test-data:
+    plugin: dump
+    source: https://git.launchpad.net/~checkbox-dev/checkbox-limerick/+git/checkbox-provider-limerick
+    source-type: git
+    source-branch: master
+    stage:
+      - data/video/hevc.h265
+      - data/video/small.h264
   bitstream-data:
     plugin: nil
-    source-packages:
-      - xlnx-kria-apps-bitstreams
+    build-packages:
+      - xlnx-firmware-kv260-smartcam
+    override-build: |
+      mkdir -p $SNAPCRAFT_PART_INSTALL/data/vcu-bitstreams
+      cp -a /lib/firmware/xilinx/kv260-smartcam/. $SNAPCRAFT_PART_INSTALL/data/vcu-bitstreams/
+      mv $SNAPCRAFT_PART_INSTALL/data/vcu-bitstreams/kv260-smartcam.bin $SNAPCRAFT_PART_INSTALL/data/vcu-bitstreams/kv260-smartcam.bit.bin 
