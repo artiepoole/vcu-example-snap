@@ -1,0 +1,47 @@
+name: vcu-example
+base: core24
+adopt-info: version
+summary: VCU for ZynqMP k26 platforms
+description: |
+  VCU for ZynqMP k26 platforms
+grade: devel
+confinement: strict
+platforms:
+  arm64:
+    build-on: [arm64]
+    build-for: [arm64]
+package-repositories:
+  - type: apt
+    url: https://ppa.launchpadcontent.net/xilinx-apps/ppa/ubuntu
+    suites: [jammy]
+    components: [main]
+    key-id: 327DCDBF661D04B5150656FE8FF9183FC8396160
+    key-server: keyserver.ubuntu.com
+plugs:
+  fpgad-dbus:
+    interface: dbus
+    bus: system
+    name: com.canonical.fpgad
+slots:
+  provided-content:
+    interface: content
+    content: provider-content
+    source:
+      read:
+        - $SNAP/data/vcu-bitstreams
+apps:
+  xilinx-vcu-ctrl:
+    
+parts:
+  xilinx-vcu-ctrl:
+    plugin: nil
+    source-packages:
+      - xilinx-vcu-ctrl
+  xilinx-vcu-omx-utils:
+    plugin: nil
+    source-packages:
+      - xilinx-vcu-omx-utils
+  bitstream-data:
+    plugin: nil
+    source-packages:
+      - xlnx-kria-apps-bitstreams
