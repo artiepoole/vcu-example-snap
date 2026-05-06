@@ -9,11 +9,12 @@ confinement: strict
 version: 0.12-0xlnx2
 platforms:
   arm64:
-    build-on: [ arm64 ]
+    build-on: [ arm64, amd64 ]
     build-for: [ arm64 ]
 package-repositories:
   # ubuntu-xilinx/default (noble): provides VCU userspace matching Noble kernel modules
   - type: apt
+    architectures: [$CRAFT_ARCH_BUILD_FOR]
     url: https://ppa.launchpadcontent.net/ubuntu-xilinx/default/ubuntu
     suites: [ noble ]
     components: [ main ]
@@ -21,6 +22,7 @@ package-repositories:
     key-server: keyserver.ubuntu.com
   # xilinx-apps/ppa (jammy): provides xlnx-firmware-kv260-smartcam bitstream files
   - type: apt
+    architectures: [$CRAFT_ARCH_BUILD_FOR]
     url: https://ppa.launchpadcontent.net/xilinx-apps/ppa/ubuntu
     suites: [ jammy ]
     components: [ main ]
@@ -45,11 +47,11 @@ slots:
         - $SNAP/data/vcu/bitstreams
 apps:
   init:
-    command: bin/manage_bitstream.sh
+    command: bin/fpgad_cli --platform universal load overlay /snap/vcu-example/current/data/vcu-bitstreams/kv260-smartcam.dtbo
     plugs:
       - fpgad-dbus
   deinit:
-    command: bin/manage_bitstream.sh --remove
+    command: bin/fpgad_cli --platform universal remove overlay
     plugs:
       - fpgad-dbus
   omx-decoder:
@@ -65,22 +67,20 @@ apps:
     plugs:
       - allegro-access
 parts:
-  manage_script:
-    plugin: dump
-    source: bin
-    source-type: local
-    organize:
-      manage_bitstream.sh: bin/manage_bitstream.sh
+  fpgad_cli:
+    plugin: nil
+    stage-snaps:
+      - fpgad/latest/edge
     stage:
-      - bin/manage_bitstream.sh
+      - bin/fpgad_cli
   xilinx-vcu-ctrl:
     plugin: nil
     stage-packages:
-      - xilinx-vcu-ctrl
+      - xilinx-vcu-ctrl:$CRAFT_ARCH_BUILD_FOR
   xilinx-vcu-omx-utils:
     plugin: nil
     stage-packages:
-      - xilinx-vcu-omx-utils
+      - xilinx-vcu-omx-utils:$CRAFT_ARCH_BUILD_FOR
   test-data:
     plugin: dump
     source: https://git.launchpad.net/~checkbox-dev/checkbox-limerick/+git/checkbox-provider-limerick
@@ -92,7 +92,7 @@ parts:
   bitstream-data:
     plugin: nil
     build-packages:
-      - xlnx-firmware-kv260-smartcam
+      - xlnx-firmware-kv260-smartcam:$CRAFT_ARCH_BUILD_FOR
     override-build: |
       mkdir -p $SNAPCRAFT_PART_INSTALL/data/vcu-bitstreams
       cp -a /lib/firmware/xilinx/kv260-smartcam/. $SNAPCRAFT_PART_INSTALL/data/vcu-bitstreams/
